@@ -31,7 +31,8 @@ class NoteCard extends StatelessWidget {
             quarterTurns: 3,
             child: Text(
               note.title,
-              style: const TextStyle(
+              style: TextStyle(
+                // color: Colors.white, // dynamic contrast
                 color: Colors.white,
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -44,7 +45,7 @@ class NoteCard extends StatelessWidget {
         // Right card
         Expanded(
           child: Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: note.cardColor ?? Colors.grey.shade300,
               boxShadow: [
@@ -63,16 +64,17 @@ class NoteCard extends StatelessWidget {
                   children: [
                     const Icon(
                       Icons.access_time,
-                      size: 16,
-                      color: Colors.white70,
+                      size: 20,
+                      color: Color(0xFF9C5C59),
+                      fontWeight: FontWeight.bold,
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 10),
                     Text(
                       note.time,
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: Colors.white,
+                        color: Color(0xFF9C5C59),
                       ),
                     ),
                   ],
@@ -83,7 +85,7 @@ class NoteCard extends StatelessWidget {
                     "• $task",
                     style: const TextStyle(
                       fontSize: 14,
-                      fontWeight: FontWeight.w400,
+                      fontWeight: FontWeight.w600,
                       color: Colors.white,
                     ),
                   ),

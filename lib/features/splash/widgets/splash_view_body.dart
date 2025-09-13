@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:notes/core/routing/app_routes.dart';
 import 'package:notes/core/styling/colors.dart';
@@ -48,7 +50,7 @@ class _SplashViewBodyState extends State<SplashViewBody>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      // backgroundColor: AppColors.background,
       body: Center(
         child: ScaleTransition(
           scale: _scaleAnimation,

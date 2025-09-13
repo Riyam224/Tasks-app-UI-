@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:notes/features/home/model/note_model.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:notes/core/styling/colors.dart';
-import 'package:notes/core/styling/text_styles.dart';
-import 'package:notes/features/home/model/note_model.dart';
+
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 class AddNewNote extends StatefulWidget {
   const AddNewNote({super.key});
@@ -18,26 +19,51 @@ class _AddNewNoteState extends State<AddNewNote> {
   bool _alarmEnabled = false;
 
   final TextEditingController _titleController = TextEditingController();
-
-  // 🔹 Dynamic tasks list
   final List<TextEditingController> _taskControllers = [
     TextEditingController(),
   ];
 
-  // 🔹 Colors
   final List<Color> availableColors = [
-    Colors.pink.shade200, // pastel pink
-    const Color.fromARGB(255, 227, 103, 41), // pastel purple
-    AppColors.travelling, // pastel yellow
-    const Color.fromARGB(255, 204, 164, 211), // soft lavender
-    Colors.blue.shade200, // pastel blue
-    Colors.green.shade200, // pastel green
-    Colors.orange.shade200, // pastel orange
+    Colors.pink.shade200,
+    const Color.fromARGB(255, 227, 103, 41),
+    AppColors.travelling,
+    const Color.fromARGB(255, 204, 164, 211),
+    Colors.blue.shade200,
+    Colors.green.shade200,
+    Colors.orange.shade200,
   ];
   Color? _selectedCardColor;
   Color? _selectedTitleColor;
 
-  // open native time picker
+  // 🎤 Speech-to-text
+  late stt.SpeechToText _speech;
+  bool _isListening = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _speech = stt.SpeechToText();
+  }
+
+  Future<void> _startListening(TextEditingController controller) async {
+    bool available = await _speech.initialize();
+    if (available) {
+      setState(() => _isListening = true);
+      _speech.listen(
+        onResult: (result) {
+          setState(() {
+            controller.text = result.recognizedWords;
+          });
+        },
+      );
+    }
+  }
+
+  void _stopListening() {
+    setState(() => _isListening = false);
+    _speech.stop();
+  }
+
   Future<void> _pickTime() async {
     final TimeOfDay? picked = await showTimePicker(
       context: context,
@@ -59,28 +85,17 @@ class _AddNewNoteState extends State<AddNewNote> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xffFFE5E4),
-      appBar: AppBar(
-        backgroundColor: AppColors.travelling.withOpacity(0.2),
-        elevation: 0,
-        titleSpacing: 0,
+    final theme = Theme.of(context);
 
-        title: GestureDetector(
-          onTap: () => Navigator.pop(context),
-          child: Row(
-            children: const [
-              // Icon(Icons.close, color: Colors.black87),
-              // SizedBox(width: 6),
-              Text(
-                'Back',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-            ],
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      appBar: AppBar(
+        backgroundColor: theme.appBarTheme.backgroundColor,
+        elevation: 0,
+        title: Text(
+          'Create New Task',
+          style: theme.textTheme.bodyLarge?.copyWith(
+            fontWeight: FontWeight.bold,
           ),
         ),
       ),
@@ -89,11 +104,8 @@ class _AddNewNoteState extends State<AddNewNote> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Create New Task", style: AppTextStyles.titleLarge),
-            const SizedBox(height: 20),
-
-            // Date Picker
-            const Text("Date", style: TextStyle(fontWeight: FontWeight.w600)),
+            // 📅 Date Picker
+            Text("Date", style: theme.textTheme.bodyLarge),
             const SizedBox(height: 8),
             TableCalendar(
               firstDay: DateTime.utc(2020, 1, 1),
@@ -106,26 +118,17 @@ class _AddNewNoteState extends State<AddNewNote> {
                   _focusedDay = focusedDay;
                 });
               },
-              headerStyle: const HeaderStyle(
+              headerStyle: HeaderStyle(
                 formatButtonVisible: false,
                 titleCentered: true,
-              ),
-              calendarStyle: CalendarStyle(
-                todayDecoration: BoxDecoration(
-                  border: Border.all(color: AppColors.meeting, width: 2),
-                  shape: BoxShape.circle,
-                ),
-                selectedDecoration: BoxDecoration(
-                  color: AppColors.meeting,
-                  shape: BoxShape.circle,
-                ),
+                titleTextStyle: theme.textTheme.bodyLarge!,
               ),
             ),
             const SizedBox(height: 20),
 
-            // Time Picker
-            const Text("Time", style: TextStyle(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
+            // ⏰ Time Picker
+            Text("Time", style: theme.textTheme.bodyLarge),
+            const SizedBox(height: 10),
             GestureDetector(
               onTap: _pickTime,
               child: Container(
@@ -134,35 +137,50 @@ class _AddNewNoteState extends State<AddNewNote> {
                   vertical: 12,
                 ),
                 decoration: BoxDecoration(
-                  color: AppColors.travelling.withOpacity(0.2),
+                  color: theme.cardColor.withOpacity(0.6),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   _selectedTime.format(context),
-                  style: const TextStyle(fontSize: 16),
+                  style: theme.textTheme.bodyLarge,
                 ),
               ),
             ),
             const SizedBox(height: 20),
 
-            // Note Title
-            const Text("Title", style: TextStyle(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _titleController,
-              decoration: InputDecoration(
-                hintText: "Write the note title",
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+            // 📝 Title with Mic
+            Text("Title", style: theme.textTheme.bodyLarge),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _titleController,
+                    decoration: const InputDecoration(
+                      hintText: "Write the note title",
+                    ),
+                  ),
                 ),
-              ),
+                IconButton(
+                  icon: Icon(
+                    _isListening ? Icons.mic : Icons.mic_none,
+                    color: AppColors.meeting,
+                  ),
+                  onPressed: () {
+                    if (_isListening) {
+                      _stopListening();
+                    } else {
+                      _startListening(_titleController);
+                    }
+                  },
+                ),
+              ],
             ),
-
             const SizedBox(height: 20),
 
-            // 🔹 Tasks
-            const Text("Tasks", style: TextStyle(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
+            // ✅ Tasks with Mic
+            Text("Tasks", style: theme.textTheme.bodyLarge),
+            const SizedBox(height: 10),
             Column(
               children: List.generate(_taskControllers.length, (index) {
                 return Padding(
@@ -174,18 +192,27 @@ class _AddNewNoteState extends State<AddNewNote> {
                           controller: _taskControllers[index],
                           decoration: InputDecoration(
                             hintText: "Task ${index + 1}",
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: Icon(
+                          _isListening ? Icons.mic : Icons.mic_none,
+                          color: AppColors.meeting,
+                        ),
+                        onPressed: () {
+                          if (_isListening) {
+                            _stopListening();
+                          } else {
+                            _startListening(_taskControllers[index]);
+                          }
+                        },
+                      ),
                       if (_taskControllers.length > 1)
                         IconButton(
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.remove_circle,
-                            color: Colors.red,
+                            color: theme.colorScheme.error,
                           ),
                           onPressed: () {
                             setState(() => _taskControllers.removeAt(index));
@@ -209,14 +236,11 @@ class _AddNewNoteState extends State<AddNewNote> {
 
             const SizedBox(height: 20),
 
-            // Alarm
+            // ⏰ Alarm
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  "Alarm",
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
+                Text("Alarm", style: theme.textTheme.bodyLarge),
                 Switch(
                   value: _alarmEnabled,
                   onChanged: (val) => setState(() => _alarmEnabled = val),
@@ -226,12 +250,9 @@ class _AddNewNoteState extends State<AddNewNote> {
             ),
             const SizedBox(height: 20),
 
-            // Color Picker
-            const Text(
-              "Pick Colors",
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
+            // 🎨 Color Picker
+            Text("Pick Colors", style: theme.textTheme.bodyLarge),
+            const SizedBox(height: 10),
             Wrap(
               spacing: 12,
               children: availableColors.map((color) {
@@ -250,17 +271,19 @@ class _AddNewNoteState extends State<AddNewNote> {
                       color: color,
                       shape: BoxShape.circle,
                       border: isSelected
-                          ? Border.all(color: Colors.black, width: 2)
+                          ? Border.all(
+                              color: theme.colorScheme.onSurface,
+                              width: 2,
+                            )
                           : null,
                     ),
                   ),
                 );
               }).toList(),
             ),
-
             const SizedBox(height: 30),
 
-            // Save Button
+            // 💾 Save Button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(

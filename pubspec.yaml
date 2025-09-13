@@ -29,10 +29,12 @@ environment:
 # versions available, run `flutter pub outdated`.
 dependencies:
   cupertino_icons: ^1.0.8
+  dio: ^5.9.0
   flutter:
     sdk: flutter
   go_router: ^16.2.1
   google_fonts: ^6.3.1
+  speech_to_text: ^7.3.0
   table_calendar: ^3.2.0
 
 dev_dependencies:
