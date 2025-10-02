@@ -1,9 +1,9 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:notes/features/home/model/note_model.dart';
-import 'package:table_calendar/table_calendar.dart';
 import 'package:notes/core/styling/colors.dart';
-
-import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:table_calendar/table_calendar.dart';
 
 class AddNewNote extends StatefulWidget {
   const AddNewNote({super.key});
@@ -16,7 +16,6 @@ class _AddNewNoteState extends State<AddNewNote> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   TimeOfDay _selectedTime = TimeOfDay.now();
-  bool _alarmEnabled = false;
 
   final TextEditingController _titleController = TextEditingController();
   final List<TextEditingController> _taskControllers = [
@@ -25,53 +24,60 @@ class _AddNewNoteState extends State<AddNewNote> {
 
   final List<Color> availableColors = [
     Colors.pink.shade200,
-    const Color.fromARGB(255, 227, 103, 41),
+    Colors.orange,
     AppColors.travelling,
-    const Color.fromARGB(255, 204, 164, 211),
+    Colors.purple.shade200,
     Colors.blue.shade200,
     Colors.green.shade200,
-    Colors.orange.shade200,
+    Colors.yellow.shade600,
   ];
   Color? _selectedCardColor;
   Color? _selectedTitleColor;
 
-  // 🎤 Speech-to-text
-  late stt.SpeechToText _speech;
-  bool _isListening = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _speech = stt.SpeechToText();
+  /// Format time like "08:30"
+  String _formatTime(TimeOfDay time) {
+    final hours = time.hour.toString().padLeft(2, '0');
+    final minutes = time.minute.toString().padLeft(2, '0');
+    return "$hours:$minutes";
   }
 
-  Future<void> _startListening(TextEditingController controller) async {
-    bool available = await _speech.initialize();
-    if (available) {
-      setState(() => _isListening = true);
-      _speech.listen(
-        onResult: (result) {
-          setState(() {
-            controller.text = result.recognizedWords;
-          });
-        },
-      );
-    }
-  }
-
-  void _stopListening() {
-    setState(() => _isListening = false);
-    _speech.stop();
-  }
-
+  /// Pick time
   Future<void> _pickTime() async {
-    final TimeOfDay? picked = await showTimePicker(
+    final picked = await showTimePicker(
       context: context,
       initialTime: _selectedTime,
     );
-    if (picked != null && picked != _selectedTime) {
-      setState(() => _selectedTime = picked);
+    if (picked != null) setState(() => _selectedTime = picked);
+  }
+
+  /// Save manually entered note
+  void _saveManualNote() {
+    if (_titleController.text.isEmpty ||
+        _selectedDay == null ||
+        _selectedCardColor == null ||
+        _taskControllers.every((c) => c.text.isEmpty)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please fill all required fields")),
+      );
+      return;
     }
+
+    final note = Note(
+      id: DateTime.now().millisecondsSinceEpoch,
+      title: _titleController.text,
+      type: "Custom",
+      time: _formatTime(_selectedTime),
+      date: _selectedDay!.toIso8601String().split("T")[0],
+      tasks: _taskControllers
+          .map((c) => c.text)
+          .where((t) => t.isNotEmpty)
+          .toList(),
+      color: "#${_selectedCardColor!.value.toRadixString(16)}",
+      cardColor: _selectedCardColor!,
+      titleColor: _selectedTitleColor ?? Colors.black,
+    );
+
+    Navigator.pop(context, note);
   }
 
   @override
@@ -90,14 +96,9 @@ class _AddNewNoteState extends State<AddNewNote> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: theme.appBarTheme.backgroundColor,
+        title: const Text("Create New Task"),
+        backgroundColor: theme.primaryColor,
         elevation: 0,
-        title: Text(
-          'Create New Task',
-          style: theme.textTheme.bodyLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -128,7 +129,7 @@ class _AddNewNoteState extends State<AddNewNote> {
 
             // ⏰ Time Picker
             Text("Time", style: theme.textTheme.bodyLarge),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             GestureDetector(
               onTap: _pickTime,
               child: Container(
@@ -148,37 +149,19 @@ class _AddNewNoteState extends State<AddNewNote> {
             ),
             const SizedBox(height: 20),
 
-            // 📝 Title with Mic
+            // 📝 Title input
             Text("Title", style: theme.textTheme.bodyLarge),
             const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _titleController,
-                    decoration: const InputDecoration(
-                      hintText: "Write the note title",
-                    ),
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(
-                    _isListening ? Icons.mic : Icons.mic_none,
-                    color: AppColors.meeting,
-                  ),
-                  onPressed: () {
-                    if (_isListening) {
-                      _stopListening();
-                    } else {
-                      _startListening(_titleController);
-                    }
-                  },
-                ),
-              ],
+            TextField(
+              controller: _titleController,
+              style: const TextStyle(color: Colors.black, fontSize: 16),
+              decoration: const InputDecoration(
+                hintText: "Write the note title",
+              ),
             ),
             const SizedBox(height: 20),
 
-            // ✅ Tasks with Mic
+            // ✅ Task list
             Text("Tasks", style: theme.textTheme.bodyLarge),
             const SizedBox(height: 10),
             Column(
@@ -190,23 +173,14 @@ class _AddNewNoteState extends State<AddNewNote> {
                       Expanded(
                         child: TextField(
                           controller: _taskControllers[index],
+                          style: const TextStyle(
+                            color: Colors.black,
+                            fontSize: 16,
+                          ),
                           decoration: InputDecoration(
                             hintText: "Task ${index + 1}",
                           ),
                         ),
-                      ),
-                      IconButton(
-                        icon: Icon(
-                          _isListening ? Icons.mic : Icons.mic_none,
-                          color: AppColors.meeting,
-                        ),
-                        onPressed: () {
-                          if (_isListening) {
-                            _stopListening();
-                          } else {
-                            _startListening(_taskControllers[index]);
-                          }
-                        },
                       ),
                       if (_taskControllers.length > 1)
                         IconButton(
@@ -214,9 +188,8 @@ class _AddNewNoteState extends State<AddNewNote> {
                             Icons.remove_circle,
                             color: theme.colorScheme.error,
                           ),
-                          onPressed: () {
-                            setState(() => _taskControllers.removeAt(index));
-                          },
+                          onPressed: () =>
+                              setState(() => _taskControllers.removeAt(index)),
                         ),
                     ],
                   ),
@@ -226,31 +199,16 @@ class _AddNewNoteState extends State<AddNewNote> {
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
-                onPressed: () {
-                  setState(() => _taskControllers.add(TextEditingController()));
-                },
+                onPressed: () => setState(
+                  () => _taskControllers.add(TextEditingController()),
+                ),
                 icon: const Icon(Icons.add, size: 18),
                 label: const Text("Add Task"),
               ),
             ),
-
             const SizedBox(height: 20),
 
-            // ⏰ Alarm
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text("Alarm", style: theme.textTheme.bodyLarge),
-                Switch(
-                  value: _alarmEnabled,
-                  onChanged: (val) => setState(() => _alarmEnabled = val),
-                  activeColor: AppColors.meeting,
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // 🎨 Color Picker
+            // 🎨 Color picker
             Text("Pick Colors", style: theme.textTheme.bodyLarge),
             const SizedBox(height: 10),
             Wrap(
@@ -288,41 +246,13 @@ class _AddNewNoteState extends State<AddNewNote> {
               width: double.infinity,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.meeting,
+                  backgroundColor: AppColors.bottomNavBackground,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
-                onPressed: () {
-                  if (_titleController.text.isEmpty ||
-                      _selectedDay == null ||
-                      _selectedCardColor == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("Please fill all required fields"),
-                      ),
-                    );
-                    return;
-                  }
-
-                  final newNote = Note(
-                    id: DateTime.now().millisecondsSinceEpoch,
-                    title: _titleController.text,
-                    type: "Custom",
-                    time: _selectedTime.format(context),
-                    tasks: _taskControllers
-                        .map((c) => c.text)
-                        .where((t) => t.isNotEmpty)
-                        .toList(),
-                    color: "#${_selectedCardColor!.value.toRadixString(16)}",
-                    cardColor: _selectedCardColor,
-                    titleColor: _selectedTitleColor,
-                    date: _selectedDay.toString(),
-                  );
-
-                  Navigator.pop(context, newNote);
-                },
+                onPressed: _saveManualNote,
                 child: const Text(
                   "Save",
                   style: TextStyle(fontSize: 16, color: Colors.white),

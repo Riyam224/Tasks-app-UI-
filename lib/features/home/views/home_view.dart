@@ -1,9 +1,10 @@
 // ignore_for_file: deprecated_member_use, unused_field, unused_element
-
 import 'package:flutter/material.dart';
 import 'package:notes/features/home/model/note_model.dart';
-import 'package:notes/features/home/widgets/add_new_note.dart';
-import 'package:notes/features/home/widgets/single_note.dart';
+import 'package:notes/features/home/widgets/add_new_note.dart'
+    as add; // 👈 alias
+import 'package:notes/features/home/widgets/single_note.dart'
+    as single; // 👈 alias
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -13,24 +14,17 @@ class HomeView extends StatefulWidget {
 }
 
 class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
-  final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
-
   int _currentIndex = 0;
+  int? _animatingIndex;
 
-  final List<Widget> _pages = [
-    Center(child: Text("Dashboard")),
-    Center(child: Text("Bookmarks")),
-    Center(child: Text("Notifications")),
-    Center(child: Text("Profile")),
-  ];
-
-  final List<Note> notes = [
+  List<Note> notes = [
     Note(
       id: 1,
       title: "Meeting",
       type: "Work",
-      time: "10:00AM - 1:00PM",
-      tasks: ["Business Meeting", "Stall Meeting"],
+      time: "10:00",
+      date: "2025-10-02",
+      tasks: ["Business Meeting", "  Team Meeting"],
       color: "#F59CAB",
       cardColor: const Color(0xFFF59CAB),
       titleColor: const Color(0xFF9C5C59),
@@ -39,8 +33,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       id: 2,
       title: "Study",
       type: "Education",
-      time: "8:00AM - 9:45PM",
-      tasks: ["Read UK Case Study", "University Homework"],
+      time: "08:00",
+      date: "2025-10-02",
+      tasks: ["Read Notes", "Go to Study", "University Homework"],
       color: "#C78CF2",
       cardColor: const Color(0xFFC78CF2),
       titleColor: const Color(0xFF8D4FB1),
@@ -49,7 +44,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       id: 3,
       title: "Travelling",
       type: "Personal",
-      time: "5:00AM - 6:00PM",
+      time: "05:00",
+      date: "2025-10-02",
       tasks: ["Garden Visit", "Union/Family Visit"],
       color: "#F8D272",
       cardColor: const Color(0xFFF8D272),
@@ -57,64 +53,157 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     ),
   ];
 
-  // remove note with curvy animation
-  void _cutNote(int index) {
-    final removedNote = notes.removeAt(index);
+  /// Remove note with animation
+  void _cutNote(int index) async {
+    // Check if index is valid
+    if (index < 0 || index >= notes.length) return;
 
-    _listKey.currentState!.removeItem(index, (context, animation) {
-      final curved = CurvedAnimation(
-        parent: animation,
-        curve: Curves.easeInOut,
-      );
+    // Mark this note as animating
+    setState(() {
+      _animatingIndex = index;
+    });
 
-      return AnimatedBuilder(
-        animation: curved,
-        builder: (context, child) {
-          return Transform(
-            alignment: Alignment.center,
-            transform: Matrix4.identity()
-              ..rotateZ(0.2 * curved.value)
-              ..scale(1.0, 1.0 - 0.3 * curved.value)
-              ..translate(200 * curved.value, -100 * curved.value),
-            child: Opacity(
-              opacity: 1.0 - curved.value,
-              child: NoteCard(note: removedNote),
-            ),
-          );
-        },
-      );
-    }, duration: const Duration(milliseconds: 700));
+    final wasLastNote = notes.length == 1;
+
+    // Wait for animation to complete
+    await Future.delayed(const Duration(milliseconds: 700));
+
+    setState(() {
+      notes.removeAt(index);
+      _animatingIndex = null;
+    });
+
+    // Show celebration when all tasks are completed
+    if (wasLastNote) {
+      await Future.delayed(const Duration(milliseconds: 200));
+      _showCelebration();
+    }
   }
 
-  // add new note with slide-up animation
-  void _addNote() {
-    final newNote = Note(
-      id: DateTime.now().millisecondsSinceEpoch,
-      title: "New Task",
-      type: "Work",
-      time: "2:00PM - 3:00PM",
-      tasks: ["Task item 1", "Task item 2"],
-      color: "#9C5C59",
-      cardColor: const Color(0xFFF59CAB),
-      titleColor: const Color(0xFF9C5C59),
+  /// Show celebration animation
+  void _showCelebration() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0.0, end: 1.0),
+          duration: const Duration(milliseconds: 800),
+          builder: (context, value, child) {
+            return Transform.scale(
+              scale: value,
+              child: Opacity(
+                opacity: value,
+                child: Container(
+                  padding: const EdgeInsets.all(40),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.purple.shade300,
+                        Colors.pink.shade300,
+                        Colors.orange.shade300,
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(30),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.purple.withOpacity(0.5),
+                        blurRadius: 30,
+                        spreadRadius: 5,
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Animated celebration icon
+                      TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0.0, end: 1.0),
+                        duration: const Duration(milliseconds: 600),
+                        builder: (context, iconValue, child) {
+                          return Transform.rotate(
+                            angle: iconValue * 2 * 3.14159,
+                            child: Icon(
+                              Icons.celebration,
+                              size: 80,
+                              color: Colors.white,
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 24),
+                      const Text(
+                        '🎉 Amazing! 🎉',
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'All tasks completed!',
+                        style: TextStyle(
+                          fontSize: 20,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.purple,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 32,
+                            vertical: 14,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text(
+                          'Awesome!',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
     );
 
-    final insertIndex = notes.length;
-    notes.add(newNote);
+    // Auto dismiss after 3 seconds
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+    });
+  }
 
-    _listKey.currentState!.insertItem(
-      insertIndex,
-      duration: const Duration(milliseconds: 600),
-    );
+  /// Add new note
+  void _addNote(Note newNote) {
+    setState(() {
+      notes.add(newNote);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // backgroundColor: const Color(0xffFFE5E4),
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        // backgroundColor: AppColors.travelling.withOpacity(0.2),
         backgroundColor: Theme.of(context).primaryColor,
         elevation: 0,
         centerTitle: false,
@@ -126,57 +215,71 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           ),
         ),
       ),
-      body: AnimatedList(
-        key: _listKey,
-        padding: const EdgeInsets.all(20),
-        initialItemCount: notes.length,
-        itemBuilder: (context, index, animation) {
-          final note = notes[index];
 
-          // custom slide-up animation for new notes
-          final slideAnimation =
-              Tween<Offset>(
-                begin: const Offset(0, 1),
-                end: Offset.zero,
-              ).animate(
-                CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
-              );
+      body: notes.isEmpty
+          ? const Center(child: Text("No notes yet"))
+          : ReorderableListView.builder(
+              padding: const EdgeInsets.all(20),
+              itemCount: notes.length,
+              onReorder: (oldIndex, newIndex) {
+                setState(() {
+                  if (newIndex > oldIndex) {
+                    newIndex -= 1;
+                  }
+                  final note = notes.removeAt(oldIndex);
+                  notes.insert(newIndex, note);
+                });
+              },
+              itemBuilder: (context, index) {
+                final note = notes[index];
+                final isAnimating = _animatingIndex == index;
 
-          return GestureDetector(
-            onTap: () => _cutNote(index),
-            child: SlideTransition(
-              position: slideAnimation,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: NoteCard(note: note),
-              ),
+                return Padding(
+                  key: ValueKey(note.id),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: GestureDetector(
+                    onTap: () => _cutNote(index),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 700),
+                      curve: Curves.easeInOut,
+                      transform: isAnimating
+                          ? (Matrix4.identity()
+                              ..rotateZ(0.2)
+                              ..scale(0.7, 0.7)
+                              ..translate(200.0, -100.0))
+                          : Matrix4.identity(),
+                      child: AnimatedOpacity(
+                        duration: const Duration(milliseconds: 700),
+                        opacity: isAnimating ? 0.0 : 1.0,
+                        child: single.NoteCard(note: note),
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
-          );
-        },
-      ),
 
-      // floating add button
+      /// Floating add button
       floatingActionButton: FloatingActionButton(
         backgroundColor: const Color(0xFF9C5C59),
         shape: const CircleBorder(),
         onPressed: () async {
           final newNote = await Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const AddNewNote()),
+            MaterialPageRoute(
+              builder: (_) => const add.AddNewNote(), // 👈 use alias
+            ),
           );
 
           if (newNote != null && newNote is Note) {
-            setState(() {
-              notes.add(newNote);
-              _listKey.currentState!.insertItem(notes.length - 1);
-            });
+            _addNote(newNote);
           }
         },
         child: const Icon(Icons.add, color: Colors.white),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
 
-      // bottom nav bar
+      /// Bottom nav bar
       bottomNavigationBar: BottomAppBar(
         shape: const CircularNotchedRectangle(),
         notchMargin: 8,
@@ -200,7 +303,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 ),
                 onPressed: () => setState(() => _currentIndex = 1),
               ),
-              const SizedBox(width: 40), // gap for FAB
+              const SizedBox(width: 40),
               IconButton(
                 icon: Icon(
                   Icons.notifications,
@@ -224,206 +327,3 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 }
 
 // // ignore_for_file: deprecated_member_use
-
-// import 'package:flutter/material.dart';
-// import 'package:notes/features/home/model/note_model.dart';
-// import 'package:notes/features/home/widgets/add_new_note.dart';
-// import 'package:notes/features/home/widgets/single_note.dart';
-
-// class HomeView extends StatefulWidget {
-//   const HomeView({super.key});
-
-//   @override
-//   State<HomeView> createState() => _HomeViewState();
-// }
-
-// class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
-//   final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
-
-//   int _currentIndex = 0;
-
-//   final List<Widget> _pages = [
-//     Center(child: Text("Dashboard")),
-//     Center(child: Text("Bookmarks")),
-//     Center(child: Text("Notifications")),
-//     Center(child: Text("Profile")),
-//   ];
-
-//   final List<Note> notes = [
-//     Note(
-//       id: 1,
-//       title: "Meeting",
-//       type: "Work",
-//       time: "10:00AM - 1:00PM",
-//       tasks: ["Business Meeting", "Stall Meeting"],
-//       color: "#F59CAB",
-//       cardColor: const Color(0xFFF59CAB),
-//       titleColor: const Color(0xFF9C5C59),
-//     ),
-//     Note(
-//       id: 2,
-//       title: "Study",
-//       type: "Education",
-//       time: "8:00AM - 9:45PM",
-//       tasks: ["Read UK Case Study", "University Homework"],
-//       color: "#C78CF2",
-//       cardColor: const Color(0xFFC78CF2),
-//       titleColor: const Color(0xFF8D4FB1),
-//     ),
-//     Note(
-//       id: 3,
-//       title: "Travelling",
-//       type: "Personal",
-//       time: "5:00AM - 6:00PM",
-//       tasks: ["Garden Visit", "Union/Family Visit"],
-//       color: "#F8D272",
-//       cardColor: const Color(0xFFF8D272),
-//       titleColor: const Color(0xFFD9A628),
-//     ),
-//   ];
-
-//   void _cutNote(int index) {
-//     final removedNote = notes.removeAt(index);
-
-//     _listKey.currentState!.removeItem(index, (context, animation) {
-//       final curved = CurvedAnimation(
-//         parent: animation,
-//         curve: Curves.easeInOut,
-//       );
-
-//       return AnimatedBuilder(
-//         animation: curved,
-//         builder: (context, child) {
-//           return Transform(
-//             alignment: Alignment.center,
-//             transform: Matrix4.identity()
-//               ..rotateZ(0.2 * curved.value)
-//               ..scale(1.0, 1.0 - 0.3 * curved.value)
-//               ..translate(200 * curved.value, -100 * curved.value),
-//             child: Opacity(
-//               opacity: 1.0 - curved.value,
-//               child: NoteCard(note: removedNote),
-//             ),
-//           );
-//         },
-//       );
-//     }, duration: const Duration(milliseconds: 700));
-//   }
-
-//   void _addNote() {
-//     final newNote = Note(
-//       id: DateTime.now().millisecondsSinceEpoch,
-//       title: "New Task",
-//       type: "Work",
-//       time: "2:00PM - 3:00PM",
-//       tasks: ["Task item 1", "Task item 2"],
-//       color: "#9C5C59",
-//       cardColor: const Color(0xFFF59CAB),
-//       titleColor: const Color(0xFF9C5C59),
-//     );
-
-//     final insertIndex = notes.length;
-//     notes.add(newNote);
-
-//     _listKey.currentState!.insertItem(
-//       insertIndex,
-//       duration: const Duration(milliseconds: 600),
-//     );
-//   }
-
-//   @override
-//   Widget build(BuildContext context) {
-//     final theme = Theme.of(context);
-
-//     return Scaffold(
-//       backgroundColor: theme.scaffoldBackgroundColor, // ✅ theme-based
-//       appBar: AppBar(
-//         elevation: 0,
-//         centerTitle: false,
-//         title: Text(
-//           'what to do today?',
-//           style: theme.textTheme.titleLarge?.copyWith(
-//             shadows: const [Shadow(blurRadius: 10.0, offset: Offset(2, 2))],
-//           ),
-//         ),
-//       ),
-//       body: AnimatedList(
-//         key: _listKey,
-//         padding: const EdgeInsets.all(20),
-//         initialItemCount: notes.length,
-//         itemBuilder: (context, index, animation) {
-//           final note = notes[index];
-
-//           final slideAnimation =
-//               Tween<Offset>(
-//                 begin: const Offset(0, 1),
-//                 end: Offset.zero,
-//               ).animate(
-//                 CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
-//               );
-
-//           return GestureDetector(
-//             onTap: () => _cutNote(index),
-//             child: SlideTransition(
-//               position: slideAnimation,
-//               child: Padding(
-//                 padding: const EdgeInsets.symmetric(vertical: 12),
-//                 child: NoteCard(note: note),
-//               ),
-//             ),
-//           );
-//         },
-//       ),
-
-//       floatingActionButton: FloatingActionButton(
-//         onPressed: () async {
-//           final newNote = await Navigator.push(
-//             context,
-//             MaterialPageRoute(builder: (_) => const AddNewNote()),
-//           );
-
-//           if (newNote != null && newNote is Note) {
-//             setState(() {
-//               notes.add(newNote);
-//               _listKey.currentState!.insertItem(notes.length - 1);
-//             });
-//           }
-//         },
-//         child: const Icon(Icons.add),
-//       ),
-//       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-
-//       bottomNavigationBar: BottomAppBar(
-//         shape: const CircularNotchedRectangle(),
-//         notchMargin: 8,
-//         color: theme.bottomNavigationBarTheme.backgroundColor, // ✅
-//         child: SizedBox(
-//           height: 65,
-//           child: Row(
-//             mainAxisAlignment: MainAxisAlignment.spaceAround,
-//             children: [
-//               _navIcon(Icons.grid_view, 0, theme),
-//               _navIcon(Icons.bookmark, 1, theme),
-//               const SizedBox(width: 40),
-//               _navIcon(Icons.notifications, 2, theme),
-//               _navIcon(Icons.person, 3, theme),
-//             ],
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-
-//   Widget _navIcon(IconData icon, int index, ThemeData theme) {
-//     final isSelected = _currentIndex == index;
-//     return IconButton(
-//       icon: Icon(
-//         icon,
-//         color: isSelected
-//             ? theme.bottomNavigationBarTheme.selectedItemColor
-//             : theme.bottomNavigationBarTheme.unselectedItemColor,
-//       ),
-//       onPressed: () => setState(() => _currentIndex = index),
-//     );
-//   }
-// }

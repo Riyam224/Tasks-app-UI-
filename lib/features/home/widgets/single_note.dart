@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:notes/features/home/model/note_model.dart';
+import 'package:notes/core/helpers/constract_text_color.dart';
 
 class NoteCard extends StatelessWidget {
   const NoteCard({super.key, required this.note});
@@ -10,6 +11,9 @@ class NoteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cardTextColor = getContrastingTextColor(note.cardColor);
+    final titleTextColor = getContrastingTextColor(note.titleColor);
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -17,10 +21,10 @@ class NoteCard extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 20),
           decoration: BoxDecoration(
-            color: note.titleColor ?? Colors.grey,
+            color: note.titleColor,
             boxShadow: [
               BoxShadow(
-                color: note.titleColor ?? Colors.grey,
+                color: note.titleColor,
                 blurRadius: 5,
                 offset: const Offset(0, 5),
               ),
@@ -32,8 +36,7 @@ class NoteCard extends StatelessWidget {
             child: Text(
               note.title,
               style: TextStyle(
-                // color: Colors.white, // dynamic contrast
-                color: Colors.white,
+                color: titleTextColor,
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
@@ -47,10 +50,10 @@ class NoteCard extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: note.cardColor ?? Colors.grey.shade300,
+              color: note.cardColor,
               boxShadow: [
                 BoxShadow(
-                  color: note.cardColor ?? Colors.grey.shade300,
+                  color: note.cardColor,
                   blurRadius: 4,
                   offset: const Offset(0, 10),
                 ),
@@ -62,31 +65,33 @@ class NoteCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.access_time,
                       size: 20,
-                      color: Color(0xFF9C5C59),
-                      fontWeight: FontWeight.bold,
+                      color: cardTextColor,
                     ),
                     const SizedBox(width: 10),
                     Text(
                       note.time,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF9C5C59),
+                        color: cardTextColor,
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
                 ...note.tasks.map(
-                  (task) => Text(
-                    "• $task",
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                  (task) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(
+                      "• $task",
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: cardTextColor,
+                      ),
                     ),
                   ),
                 ),
